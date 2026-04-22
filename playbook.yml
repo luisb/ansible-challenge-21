@@ -1,6 +1,7 @@
 ---
 - name: Create users on database and webservers groups
   hosts: all
+  become: true
   vars_files:
     - users.yml
     - secret.yml
