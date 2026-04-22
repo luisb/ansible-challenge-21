@@ -1,0 +1,35 @@
+---
+- name: Create users on database and webservers groups
+  hosts: all
+  vars_files:
+    - users.yml
+    - secret.yml
+  tasks:
+    - name: Create user
+      ansible.builtin.user:
+        name: "{{ item.username }}"
+        uid: "{{ item.uid }}"
+        append: true
+        groups: wheel
+        shell: /bin/bash
+        password: "{{ user_password | password_hash('sha512', 'aSecretSalt') }}"
+        update_password: on_create
+        generate_ssh_key: true
+        ssh_key_type: rsa
+        ssh_key_file: .ssh/id_rsa
+        state: present
+      no_log: true
+      loop: "{{ users }}"
+      when:
+        - (inventory_hostname in groups['webservers'] and (item.uid | string).startswith('1')) or
+          (inventory_hostname in groups['database'] and (item.uid | string).startswith('2'))
+
+    - name: Install SSH keys on hosts
+      ansible.builtin.authorized_key:
+        user: "{{ item.username }}"
+        key: file:///home/{{ item.username }}/.ssh/id_rsa.pub
+        state: present
+      loop: "{{ users }}"
+      when:
+        - (inventory_hostname in groups['webservers'] and (item.uid | string).startswith('1')) or
+          (inventory_hostname in groups['database'] and (item.uid | string).startswith('2'))
